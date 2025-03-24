@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GridWorld - Value Iteration</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Orbitron', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e, #1a1a3b);
+            color: #fff;
+            text-align: center;
+            margin: 20px;
+        }
+        h1 {
+            font-size: 3em;
+            text-shadow: 3px 3px 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 1);
+        }
+        p {
+            font-size: 1.2em;
+            line-height: 1.5;
+        }
+        button {
+            margin-left: 5px;
+            margin-top: 30px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #ff00ff, #00ffff);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            color: white;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transition: all 0.3s ease-in-out;
+        }
+        button:hover {
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.8);
+            transform: scale(1.1);
+        }
+        .grid-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        .grid {
+            display: grid;
+            gap: 5px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            transition: all 0.3s ease-in-out;
+        }
+        .cell {
+            border: solid #fddd4f;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .start { background: radial-gradient(circle, #0f0, #0a0); }
+        .goal { background: radial-gradient(circle, #f00, #a00); }
+        .obstacle { background: #000000; }
+        .matrix-container {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 40px;
+        }
+        .matrix {
+            padding: 20px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(85, 0, 255, 0.2));
+            backdrop-filter: blur(15px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5), 0 0 40px rgba(85, 0, 255, 0.5);
+            border: 3px solid rgba(0, 255, 255, 0.6);
+            transition: all 0.3s ease-in-out;
+            position: relative;
+            overflow: hidden;
+        }
+        .matrix::before {
+            content: "";
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent);
+            transform: rotate(45deg);
+            opacity: 0.2;
+        }
+        .matrix:hover {
+            box-shadow: 0 0 40px rgba(0, 255, 255, 0.8), 0 0 60px rgba(85, 0, 255, 0.8);
+            border-color: rgba(85, 0, 255, 0.8);
+        }
+        .matrix-row {
+            display: flex;
+            justify-content: center;
+        }
+        .matrix-cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+        .value-matrix .matrix-cell {
+            background: linear-gradient(90deg, #ff9100a6, #eb7f04d8);
+        }
+        .policy-matrix .matrix-cell {
+            background: linear-gradient(90deg, #00a2ff46, #00d9ffe7);
+        }
+        @keyframes futuristic-glow {
+            0% { background: rgba(0, 255, 255, 0.2); box-shadow: 0 0 5px rgba(0, 255, 255, 0.5); }
+            50% { background: rgba(85, 0, 255, 0.5); box-shadow: 0 0 15px rgba(85, 0, 255, 1); }
+            100% { background: rgba(170, 0, 255, 0.8); box-shadow: 0 0 20px rgba(170, 0, 255, 1); }
+        }
+        .path {
+            animation: futuristic-glow 0.6s ease-in-out forwards;
+            color: white;
+            font-weight: bold;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.8);
+        }
+
+        .obstacle {
+            background: #000000;  /* 设置障碍物的背景为黑色 */
+            border: solid 2px #ffffff;  /* 为障碍物添加白色边框 */
+            color: white;  /* 设置文本颜色为白色，以便更容易看到 */
+            font-weight: bold;  /* 强调障碍物文字 */
+        }
+    </style>
+</head>
+<body>
+    <h1>GridWorld with Value Iteration</h1>
+    <label>Grid Size (3-9): <input type="number" id="grid-size" min="3" max="9" value="5"></label>
+    <button onclick="generateGrid()">Generate Grid</button>
+    <button onclick="generateRandomPolicy()">Generate Random Policy</button>
+    <button onclick="runValueIterationWithAnimation()">Run Value Iteration</button>
+    <p>Click cells to set: Start (Green) → Goal (Red) → Obstacles (Gray)</p>
+    
+    <div class="grid-container">
+        <div id="grid" class="grid"></div>
+    </div>
+
+    <div class="matrix-container">
+        <div class="matrix value-matrix">
+            <h2>Value Matrix</h2>
+            <div id="value-matrix"></div>
+        </div>
+        
+        <div class="matrix policy-matrix">
+            <h2>Policy Matrix</h2>
+            <div id="policy-matrix"></div>
+        </div>
+    </div>
+
+    <script>
+        let n = 5, start = null, goal = null, obstacles = new Set(), maxObstacles = n - 2;
+        let path = [];
+
+        function generateGrid() {
+            n = parseInt(document.getElementById("grid-size").value);
+            start = goal = null;
+            obstacles.clear();
+            maxObstacles = n - 2;
+
+            const grid = document.getElementById("grid");
+            grid.innerHTML = "";
+            grid.style.gridTemplateColumns = `repeat(${n}, 50px)`;
+
+            let count = 1;
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < n; j++) {
+                    const cell = document.createElement("div");
+                    cell.classList.add("cell");
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+                    cell.textContent = count++;
+                    cell.onclick = () => handleCellClick(cell, i, j);
+                    grid.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(cell, i, j) {
+            const id = `${i},${j}`;
+
+            if (!start) {
+                start = id;
+                cell.classList.add("start");
+            } else if (!goal) {
+                goal = id;
+                cell.classList.add("goal");
+            } else if (obstacles.size < maxObstacles) {
+                if (!obstacles.has(id)) {
+                    obstacles.add(id);
+                    cell.classList.add("obstacle");  // 给障碍物单元格添加黑色背景
+                    cell.textContent = "X";  // 可选，显示一个标记，比如 "X"
+                } else {
+                    alert("This cell is already an obstacle!");
+                }
+            } else {
+                alert(`You can only set ${maxObstacles} obstacles!`);
+            }
+        }
+
+                function generateRandomPolicy() {
+            fetch("/generate_random_policy", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ n, start, goal, obstacles: Array.from(obstacles) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayMatrix("policy-matrix", data.policy_matrix, true);
+                displayMatrix("value-matrix", data.value_matrix, false);
+            });
+        }
+
+        function runValueIterationWithAnimation() {
+            fetch("/run_value_iteration", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ n, start, goal, obstacles: Array.from(obstacles) })
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayMatrix("value-matrix", data.value_matrix);
+                displayMatrix("policy-matrix", data.policy_matrix, true);
+                path = data.path;
+                animatePath();
+            });
+        }
+
+        function animatePath() {
+            let index = 0;
+            const interval = setInterval(() => {
+                if (index < path.length) {
+                    const [i, j] = path[index];
+                    const cell = document.querySelector(`.cell[data-row='${i}'][data-col='${j}']`);
+                    cell.classList.add("path");
+                    index++;
+                } else {
+                    clearInterval(interval);
+                }
+            }, 500);
+        }
+
+        function displayMatrix(elementId, matrix, isPolicy = false) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = "";
+
+            for (let i = 0; i < n; i++) {
+                const rowDiv = document.createElement("div");
+                rowDiv.classList.add("matrix-row");
+                rowDiv.style.display = "flex";
+
+                for (let j = 0; j < n; j++) {
+                    const cellDiv = document.createElement("div");
+                    cellDiv.classList.add("matrix-cell");
+                    cellDiv.style.margin = "5px";
+
+                    const id = `${i},${j}`;
+
+                    // Check if the cell is an obstacle
+                    if (obstacles.has(id)) {
+                        cellDiv.classList.add("obstacle");
+                        cellDiv.textContent = "X"; 
+                        cellDiv.style.color = "#ffffff"; 
+                        cellDiv.style.fontWeight = "bold";  
+                        cellDiv.style.textShadow = "0 0 5px rgba(255, 255, 255, 0.8)"; 
+                        cellDiv.style.backgroundColor = "#000000"; 
+                    } else {
+                        // Check if the cell is the goal
+                        if (goal === id) {
+                            cellDiv.textContent = "End";  // Display "End" for the goal
+                            cellDiv.style.color = "#ffffff";  // Set text color to red for "End"
+                            cellDiv.style.fontWeight = "bold";  // Make "End" bold
+                            cellDiv.style.textShadow = "0 0 5px rgba(255, 0, 0, 0.8)";  // Add red glow effect
+                            cellDiv.style.background = "#b91b1b";  // Set background color (optional)
+                        } else if (start === id) {
+                            cellDiv.textContent = "Start";  // Display "End" for the goal
+                            cellDiv.style.color = "#ffffff";  // Set text color to red for "End"
+                            cellDiv.style.fontWeight = "bold";  // Make "End" bold
+                            cellDiv.style.textShadow = "0 0 5px rgba(255, 0, 0, 0.8)";  // Add red glow effect
+                            cellDiv.style.background = "#22d81a";  // Set background color (optional)
+                        }                                                                
+                        else {
+                            // For policy or value cells, display the value
+                            if (isPolicy) {
+                                cellDiv.textContent = matrix[i][j];  // Display policy matrix value
+                            } else {
+                                cellDiv.textContent = matrix[i][j].toFixed(2);  // Display value matrix, formatted to 2 decimals
+                            }
+                        }
+                    }
+
+                    rowDiv.appendChild(cellDiv);
+                }
+                container.appendChild(rowDiv);
+            }
+        }
+
+
+        generateGrid();
+    </script>
+</body>
+</html>
