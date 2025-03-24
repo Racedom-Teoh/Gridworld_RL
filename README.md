@@ -1,8 +1,4 @@
-
-<video width="600" autoplay loop muted>
-  <source src="Gridworld - Value Iteration.mp4" type="video/mp4">
-  您的瀏覽器不支援影片播放。
-</video>
+![動圖示例](your-gif.gif)
 
 # 強化學習報告 - HW1-1
 
