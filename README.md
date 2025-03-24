@@ -1,4 +1,4 @@
-![動圖示例](your-gif.gif)
+![動圖示例](gridworld.gif)
 
 # 強化學習報告 - HW1-1
 
